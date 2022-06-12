@@ -67,9 +67,10 @@ full_data = nn_data[["create_date", "targ_leads"]]
 full_data["create_date"] = full_data["create_date"].apply(time_2ms)
 
 scaler = MinMaxScaler()
-full_data=pd.DataFrame(scaler.fit_transform(full_data),
-                       columns=full_data.columns,
-                       index=full_data.index)
+full_data = pd.DataFrame(scaler.fit_transform(full_data),
+                         columns=full_data.columns,
+                         index=full_data.index)
+
 full_data['type_channel'] = nn_data['type_channel']
 
 

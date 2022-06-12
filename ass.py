@@ -6,6 +6,13 @@ from dash import html
 from dash import dash_table
 from dash.dependencies import Input, Output, State
 
+
+from sklearn.preprocessing import MinMaxScaler
+
+from prophet import Prophet
+from prophet.plot import plot_plotly, plot_components_plotly
+from prophet.serialize import model_to_json, model_from_json
+
 import requests
 import pandas as pd
 import numpy as np
@@ -77,11 +84,6 @@ time_selector = dcc.RangeSlider(
 
 
 
-'''  METRICS  '''
-
-ROMI = (sum(df['avg_bill']*df['targ_leads']) - sum(df['click_price']*df['conversion']))*100/sum(df['click_price']*df['conversion'])
-gen_conv = sum(df['conversion'])
-gen_target_lead = sum(df['targ_leads'])
 
 
 
@@ -118,7 +120,7 @@ tab1_content = dbc.Row([
                         dbc.Col([
                             html.Div(['ROMI = (ДОХОДЫ-РАСХОДЫ НА МАРКЕТИНГ)/РАСХОДЫ НА МАРКЕТИНГ * 100%'], className='title-romi'),
                             html.Div([], className='border'),
-                            html.Div([f'{round(ROMI,1)}%'], className='number_romi')
+                            html.Div(id='romi', className='number_romi')
                         ], className='metr-tomi', width={'size': 4}),
 
                         dbc.Col([dcc.Graph(id='pie-chart')
@@ -155,19 +157,19 @@ tab1_content = dbc.Row([
                         dbc.Col([
                             html.Div(['СРЕДНИЙ ЧЕК ЗА ПЕРИОД'], className='title-box color-yellow'),
                             html.Div([], className='border'),
-                            html.Div([f'{int(round(np.mean(df["avg_bill"], 0)))}'], className='number')
+                            html.Div(id='avg-bill', className='number')
                         ], className='metr-stand', width={'size': 3}),
 
                         dbc.Col([
                             html.Div(['КОНВЕРСИЯ ЗА ПЕРИОД'], className='title-box color-green'),
                             html.Div([], className='border'),
-                            html.Div([f'{int(gen_conv)}'], className='number')
+                            html.Div(id='conv', className='number')
                         ], className='metr-stand', width={'size': 3}),
 
                         dbc.Col([
                             html.Div(['ЦЕЛЕВЫЕ КЛИЕНТЫ'], className='title-box color-red'),
                             html.Div([], className='border'),
-                            html.Div([f'{int(gen_target_lead)}'], className='number')
+                            html.Div(id='gen-target', className='number')
                         ], className='metr-stand', width={'size': 3})
                     ], justify='between'),
 
@@ -195,9 +197,40 @@ tab1_content = dbc.Row([
 
 
 
-tab2_content = dbc.Row([
-                #barside
-                ])
+tab2_content = html.Div([
+
+    dbc.Row([
+        dbc.Col([dcc.Graph(id='chart-pred-fig6')
+                 ], width={'size': 4}),
+
+        dbc.Col([dcc.Graph(id='chart-pred-fig7')
+                ], width={'size': 4}),
+
+        dbc.Col([dcc.Graph(id='chart-pred-fig8')
+                 ], width={'size': 4}),
+    ]),
+    dbc.Row([
+
+
+        dbc.Col([dcc.Graph(id='chart-pred-fig9')
+                 ], width={'size': 4}),
+
+        dbc.Col([dcc.Graph(id='chart-pred-fig10')
+                 ], width={'size': 4}),
+
+        dbc.Col([dcc.Graph(id='chart-pred-fig11')
+                 ], width={'size': 4})
+    ]),
+
+    dbc.Row([
+        dbc.Col([dcc.Graph(id='chart-pred-fig12')
+                 ], width={'size': 4}),
+        dbc.Col([
+                dbc.Button('Apply', id='submit-val', n_clicks=0,
+                           color="secondary")], width={'size': 4})
+    ])
+])
+
 
 """  LAYOUT  """
 
@@ -221,9 +254,46 @@ app.layout = html.Div([
 
 
 
+'''   FIGURS   '''
+
+def plot_predict_figurs(data, el):
+
+    input_names = ["create_date"]
+    output_names = ["targ_leads"]
+
+    sort_data = data[data['type_channel'] == el]
+
+    train_data = sort_data[input_names + output_names]
+
+    train_data.rename(columns={'create_date': 'ds', 'targ_leads': 'y'}, inplace=True)
+
+
+    with open(f'{el}_model.json', 'r') as fin:
+      m = model_from_json(fin.read())
+
+    future = m.make_future_dataframe(periods=7)
+    forecast = m.predict(future)
+
+    forecast.rename(columns={'ds': 'Date', 'trend': 'Trend'}, inplace=True)
+
+    fig = px.line(forecast.iloc[-7:,:],
+                   x='Date',
+                   y='Trend',
+                   title = f'Тренд для канала "{el}"'
+                   )
+
+    return fig
+
+
+
+'''  CALLBACKS  '''
 
 @app.callback(
-    [Output(component_id='dist-temp-chart', component_property='figure'),
+    [Output(component_id='romi', component_property='children'),
+     Output(component_id='avg-bill', component_property='children'),
+     Output(component_id='conv', component_property='children'),
+     Output(component_id='gen-target', component_property='children'),
+     Output(component_id='dist-temp-chart', component_property='figure'),
      Output(component_id='pie-chart', component_property='figure'),
      Output(component_id='profit-chart', component_property='figure')],
     [Input(component_id='channel-selector', component_property='value'),
@@ -249,30 +319,37 @@ def update_dist_temp_chart(channel_selector, time_slider):
     profit_data['mean_targ_vs_cost'] = profit_data['avg_bill'] * profit_data['targ_leads'] - profit_data['click_price'] * profit_data['conversion']
     profit_data = profit_data.groupby(['type_channel'])['mean_targ_vs_cost'].median()
 
+    '''  METRICS  '''
+
+    ROMI = (sum(chart_data['avg_bill'] * chart_data['targ_leads']) - sum(chart_data['click_price'] * chart_data['conversion'])) * 100 / sum(
+        chart_data['click_price'] * chart_data['conversion'])
+    gen_conv = sum(chart_data['conversion'])
+    gen_target_lead = sum(chart_data['targ_leads'])
+
+    html1 = [html.Div([f'{round(ROMI,1)}%'])]
+    html2 = [html.Div([f'{int(round(np.mean(chart_data["avg_bill"], 0)))}'])]
+    html3 = [html.Div([f'{gen_conv}'])]
+    html4 = [html.Div([f'{gen_target_lead}'])]
+
+
+
+
+    ''' FIGURS '''
+
     fig1 = px.line(time_data,
                    x='create_date',
                    y='targ_leads',
                    color='type_channel'
                    )
     fig1.update_layout(
-                        # legend_orientation="h",
-                       # legend=dict(y=0),
                        margin=dict(l=0, r=20, t=20, b=20),
-                       # textinfo='percent',
                        title_font_size=14,
-                       legend_font_size=10)
+                       legend_font_size=10
+    )
 
 
     fig2 = px.pie(chart_data, values='targ_leads', names='type_channel',
-                  title='Распределение трафика по каналам',
-                  # color='type_channel',
-                  # color_discrete_map={'контекстная реклама': 'lightcyan',
-                  #                     'VK, Telegram': 'cyan',
-                  #                     'нативная реклама': 'royalblue',
-                  #                     'CPA': 'darkblue',
-                  #                     'медийная реклама': 'royalblue',
-                  #                     'Programmatic': 'royalblue',
-                  #                     'геймификация': 'royalblue',}
+                  title='Распределение трафика по каналам'
                   )
     fig2.update_layout(legend_orientation="v",
                        # legend=dict(x=1, xanchor="center"),
@@ -298,86 +375,46 @@ def update_dist_temp_chart(channel_selector, time_slider):
 
     # html1 = [html.H4("Planet Temperature ~ Distance from the Star"),
     #          dcc.Graph(figure=fig1)]
-    return fig1, fig2, fig3
+    return html1, html2, html3, html4, fig1, fig2, fig3
 
-# @app.callback(
-#     [Output(component_id='dist-temp-chart', component_property='figure'),
-#      Output(component_id='pie-chart', component_property='figure'),
-#      Output(component_id='profit-chart', component_property='figure')],
-#     [Input(component_id='channel-selector', component_property='value'),
-#      Input(component_id='time-slider', component_property='value')])
-#
-# def update_dist_temp_chart(channel_selector, time_slider):
-#     # Фильтрация датасета
-#
-#
-#     chart_data = df[(df['create_date'] > pd.to_datetime(dt.date.fromtimestamp(time_slider[0]))) &
-#                     (df['create_date'] < pd.to_datetime(dt.date.fromtimestamp(time_slider[1]))) &
-#                     (df['type_channel'].isin(channel_selector))]
-#
-#
-#     time_data = chart_data.copy()
-#     time_data['create_date'] = time_data['create_date'].dt.strftime('%m-%Y')
-#     time_data = time_data.groupby(['create_date', 'type_channel'])['targ_leads'].sum()
-#     time_data = time_data.reset_index()
-#     time_data['create_date'] = time_data['create_date'].astype('datetime64[ns]')
-#     time_data = time_data.sort_values(by='create_date')
-#
-#     profit_data = chart_data.copy()
-#     profit_data['mean_targ_vs_cost'] = profit_data['avg_bill'] * profit_data['targ_leads'] - profit_data['click_price'] * \
-#                                       profit_data['conversion']
-#     profit_data = profit_data.groupby(['type_channel'])['mean_targ_vs_cost'].median()
-#
-#     fig1 = px.line(time_data,
-#                    x='create_date',
-#                    y='targ_leads',
-#                    color='type_channel'
-#                    )
-#     fig1.update_layout(
-#                         # legend_orientation="h",
-#                        # legend=dict(y=0),
-#                        margin=dict(l=0, r=20, t=20, b=20),
-#                        # textinfo='percent',
-#                        title_font_size=14,
-#                        legend_font_size=10)
-#
-#
-#     fig2 = px.pie(chart_data, values='targ_leads', names='type_channel',
-#                   title='Распределение трафика по каналам',
-#                   # color='type_channel',
-#                   # color_discrete_map={'контекстная реклама': 'lightcyan',
-#                   #                     'VK, Telegram': 'cyan',
-#                   #                     'нативная реклама': 'royalblue',
-#                   #                     'CPA': 'darkblue',
-#                   #                     'медийная реклама': 'royalblue',
-#                   #                     'Programmatic': 'royalblue',
-#                   #                     'геймификация': 'royalblue',}
-#                   )
-#     fig2.update_layout(legend_orientation="v",
-#                        # legend=dict(x=1, xanchor="center"),
-#                        margin=dict(l=0, r=0, t=20, b=0),
-#                        # textinfo='percent',
-#                        title_font_size=14,
-#                        legend_font_size=10)
-#     # fig1.update_layout(template=CHARTS_TEMPLATE)
-#
-#     fig3 = px.bar(profit_data,
-#                   y=profit_data,
-#                   x=profit_data.index,
-#                   color=profit_data.index,
-#                   title="МАРЖА")
-#
-#     fig3.update_layout(legend_orientation="v",
-#                        # legend=dict(x=1, xanchor="center"),
-#                        margin=dict(l=0, r=0, t=40, b=0),
-#                        # textinfo='percent',
-#                        title_font_size=14,
-#                        legend_font_size=10)
-#
-#
-#     # html1 = [html.H4("Planet Temperature ~ Distance from the Star"),
-#     #          dcc.Graph(figure=fig1)]
-#     return fig1, fig2, fig3
+
+@app.callback(
+    [Output(component_id='chart-pred-fig6', component_property='figure'),
+     Output(component_id='chart-pred-fig7', component_property='figure'),
+     Output(component_id='chart-pred-fig8', component_property='figure'),
+     Output(component_id='chart-pred-fig9', component_property='figure'),
+     Output(component_id='chart-pred-fig10', component_property='figure'),
+     Output(component_id='chart-pred-fig11', component_property='figure'),
+     Output(component_id='chart-pred-fig12', component_property='figure')],
+    [Input(component_id='submit-val', component_property='n_clicks')])
+
+def update_prediction_figurs(channel_selector):
+    # Фильтрация датасета
+
+
+    # chart_data = df[(df['create_date'] > pd.to_datetime(dt.date.fromtimestamp(time_slider[0]))) &
+    #                 (df['create_date'] < pd.to_datetime(dt.date.fromtimestamp(time_slider[1]))) &
+    #                 (df['type_channel'].isin(channel_selector))]
+    #
+    #
+    # time_data = chart_data.copy()
+    # time_data['create_date'] = time_data['create_date'].dt.strftime('%m-%Y')
+    # time_data = time_data.groupby(['create_date', 'type_channel'])['targ_leads'].sum()
+    # time_data = time_data.reset_index()
+    # time_data['create_date'] = time_data['create_date'].astype('datetime64[ns]')
+    # time_data = time_data.sort_values(by='create_date')
+
+    fig6 = plot_predict_figurs(df, 'контекстная реклама ')
+    fig7 = plot_predict_figurs(df, 'VK, Telegram')
+    fig8 = plot_predict_figurs(df, 'нативная реклама')
+    fig9 = plot_predict_figurs(df, 'CPA')
+    fig10 = plot_predict_figurs(df, 'медийная реклама')
+    fig11 = plot_predict_figurs(df, 'геймификация')
+    fig12 = plot_predict_figurs(df, 'Programmatic')
+
+    return fig6, fig7, fig8, fig9, fig10, fig11, fig12
+
+
 if __name__ == '__main__':
     app.run_server(debug=True)
 
