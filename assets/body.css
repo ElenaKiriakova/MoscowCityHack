@@ -1,0 +1,145 @@
+body{
+    margin: 0;
+    padding: 0;
+    overflow-x: hidden;
+    background: #D9D9D9
+}
+
+
+.header{
+    width: 100%;
+    margin:0;
+    height: 5vh;
+    background: #1B1B1B;
+}
+
+
+.barside {
+    background: #333333;
+    height: 200hv;
+}
+
+
+.stand-metr{
+    background: #EAEAEA;
+}
+
+
+#head-TAG{
+    background: #D9D9D9;
+
+}
+
+
+.main-col-left{
+    margin: 5px 10px 30px 30px;
+}
+
+
+.main-col-right{
+    margin: 5px 30px 30px 10px;
+}
+
+
+.metr-tomi{
+    box-shadow: 5px 5px 5px lightgrey;
+    background: #fff;
+    height: 200px;
+}
+
+#channel-selector{
+    font-size: 80%;
+    min-height: 1px;
+}
+
+#pie-chart{
+    box-shadow: 5px 5px 5px lightgrey;
+    height: 200px;
+    font-size: 16px;
+}
+
+.border{
+    border-bottom: 1px solid black;
+}
+
+.metr-stand{
+    background: #FFFFFF;
+    height: 170px;
+    box-shadow: 5px 5px 5px lightgrey;
+}
+
+#dist-temp-chart{
+    box-shadow: 5px 5px 5px lightgrey;
+    height: 400px;
+}
+
+#profit-chart{
+ height: 400px;
+ box-shadow: 5px 5px 5px lightgrey;
+}
+
+
+
+.margin-rows{
+    margin-top: 20px;
+    margin-bottom: 20px;
+}
+
+.metr-left{
+    margin-bottom: 20px;
+}
+
+
+.selector-box{
+    margin-top: 5px;
+    margin-bottom: 10px;
+}
+
+.selector-channel{
+    margin-top:50px;
+    margin-bottom: 42px;
+}
+
+.title-box{
+    font-family: Georgia, 'Times New Roman', Times, serif;
+    font-size: 1.0em;
+    height: 80px;
+    text-align: center;
+    display: flex;
+    align-items: center;
+}
+
+.color-yellow{
+    color: #BB9357;
+}
+
+.color-green{
+    color: #489650;
+}
+
+.color-red{
+    color: #BB5757;
+}
+
+.number{
+    font-family: 'Times New Roman', Times, serif;
+    font-size: 2.5em;
+    text-align: center;
+    padding-top: 10px;
+}
+
+.title-romi{
+    font-family: Georgia, 'Times New Roman', Times, serif;
+    font-size: 0.8em;
+    height: 80px;
+    text-align: center;
+    display: flex;
+    align-items: center;
+}
+
+.number_romi{
+    font-family: Impact, Charcoal, sans-serif;
+    font-size: 3em;
+    text-align: center;
+    padding-top: 8px;
+}
